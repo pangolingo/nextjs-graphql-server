@@ -21,7 +21,8 @@ export const batchGetUsers = async (db, keys) => {
 }
 
 
-export const fetchCurrentUser = async (user) => {
+export const fetchCurrentUser = async (ctx) => {
+  const user = ctx.user;
   console.log('fetching current user', user)
   // const user = await conn('users').first();
   // const user = await conn('users').where({id: 'dce36881-946e-45b2-b003-b949107f7ff8'}).first()

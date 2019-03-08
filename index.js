@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
 import "@babel/polyfill";
-import { GraphQLServer } from 'graphql-yoga';
+// import { GraphQLServer } from 'graphql-yoga';
+import express from 'express';
+import {ApolloServer, gql} from 'apollo-server-express';
+import expressPlayground from 'graphql-playground-middleware-express'
 import knex from 'knex';
 import DataLoader from 'dataloader';
 import _ from 'lodash';
@@ -10,6 +13,7 @@ import bodyParser from 'body-parser';
 import jwt from 'jsonwebtoken';
 import { Strategy as JwtStrategy, ExtractJwt} from 'passport-jwt';
 import cors from 'cors';
+import jsonwebtoken from 'jsonwebtoken';
 
 dotenv.config();
 
@@ -22,7 +26,7 @@ import { authenticateUser } from './src/auth';
 const conn = knex({
   client: 'pg',
   connection: process.env.PG_CONNECTION_STRING,
-  debug: true
+  debug: false
 });
 
 
@@ -100,16 +104,16 @@ const typeDefs = `
 const resolvers = {
   Query: {
     hello: (_, { name }) => `Hello ${name || 'World'}`,
-    viewer: (_, __, context) => fetchCurrentUser(context.user),
+    viewer: (_, __, ctx) => fetchCurrentUser(ctx),
     teams: () => fetchAllTeams(conn),
-    team: (_, { id }) => fetchTeam(conn, id),
+    team: (_, { id }, ctx) => fetchTeam(conn, ctx, id),
     user: (_, { id }) => fetchUserById(conn, id)
   },
   // HighFive: {
     
   // },
   Comment: {
-    author: (comment, args, context, info) => {
+    author: (comment, args, ctx, info) => {
       if(comment.authorId){
         return fetchUserById(comment.authorId);
       }
@@ -151,12 +155,13 @@ opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
 opts.secretOrKey = 'secret';
 
 
-passport.use(new JwtStrategy(opts, async function(jwtPayload, done) {
-  console.log('find payload', jwtPayload);
+const jwtUserVerify = async (jwtPayload, done) => {
+  console.log("NON optional vieryfing", jwtPayload)
+  // console.log('find payload', jwtPayload);
   let user;
   try {
     user = await userLoader.load(jwtPayload.sub);
-    console.log('jwt strategy got a user', user)
+    console.log('jwt strategy got a user', user.email)
   } catch(e) {
     return done(e, false);
   }
@@ -164,37 +169,72 @@ passport.use(new JwtStrategy(opts, async function(jwtPayload, done) {
     return done(err, false, {message: 'no user found'});
   }
   return done(null, user)
-}));
+}
+
+passport.use(new JwtStrategy(opts, jwtUserVerify));
 
 
 const passportLocalAuth = passport.authenticate('local', { session: false })
 const passportJwtAuth = passport.authenticate('jwt', { session: false })
 
-const context = req => {
+const optionalJwtMiddleware = (req, res, next) => {
+  const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
+  console.log('optional middleware', token);
+  if(!token){
+    return next();
+  }
+  return jwt.verify(token, opts.secretOrKey, {}, (err, payload) => {
+    if(err){
+      console.warn('error verifying jwt', token)
+      next();
+    } else {
+      jwtUserVerify(payload, (err, user, info) => {
+        // ignore err and info, we just care about saving the user
+        console.log('was user verified?', user)
+        req.user = user;
+        next();
+      })
+    }
+
+
+    console.log('decoded token', payload)
+  });
+}
+
+
+
+const context = ({req}) => {
   return {
-    user: req.request.user
+    user: req.user
   }
 };
 
-const server = new GraphQLServer({ typeDefs, resolvers, context });
 
-// yoga only configures cores for its standard routes
-// we need this global declaration if we want it to work for our manual routes
-server.express.use(cors(corsOptions))
+const PORT = 4000;
+const app = express();
+const server = new ApolloServer({typeDefs, resolvers, context});
 
-server.express.use(bodyParser.urlencoded({ extended: true }));
-server.express.use(passport.initialize());
+app.use(cors(corsOptions))
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(passport.initialize());
 
-server.express.get('/login', function(req, res) {
+app.get('/login', function(req, res) {
   res.send('hello')
 })
 
-server.express.get('/protected', passportJwtAuth, function(req, res) {
+app.get('/protected', passportJwtAuth, function(req, res) {
   res.send('i am very private')
 })
 
-server.express.post('/login',
-passportLocalAuth,
+// app.use(server.graphqlPath, passportJwtAuth)
+app.use(server.graphqlPath, optionalJwtMiddleware)
+
+server.applyMiddleware({app})
+
+app.get('/', expressPlayground({ endpoint: server.graphqlPath }))
+
+app.post('/login',
+  passportLocalAuth,
   function(req, res) {
     // If this function gets called, authentication was successful.
     // `req.user` contains the authenticated user.
@@ -211,13 +251,67 @@ passportLocalAuth,
     res.json(json);
   });
 
-
 // temporarily remove any auth middleware
-// server.express.post(server.options.endpoint, passportJwtAuth)
+// app.post(server.graphqlPath, passportJwtAuth)
+
+// middleware should find JWT if it exists, finde the user, and set that user
 
 
-const serverOptions = {
-  cors: corsOptions
-}
+app.listen({port: PORT}, () => console.log('Server is running on localhost:4000'));
 
-server.start(serverOptions,() => console.log('Server is running on localhost:4000'))
+
+
+
+
+
+
+
+
+
+
+
+// const server = new GraphQLServer({ typeDefs, resolvers, context });
+
+// // yoga only configures cores for its standard routes
+// // we need this global declaration if we want it to work for our manual routes
+// server.express.use(cors(corsOptions))
+
+// server.express.use(bodyParser.urlencoded({ extended: true }));
+// server.express.use(passport.initialize());
+
+// server.express.get('/login', function(req, res) {
+//   res.send('hello')
+// })
+
+// server.express.get('/protected', passportJwtAuth, function(req, res) {
+//   res.send('i am very private')
+// })
+
+// server.express.post('/login',
+// passportLocalAuth,
+//   function(req, res) {
+//     // If this function gets called, authentication was successful.
+//     // `req.user` contains the authenticated user.
+//     // res.redirect('/users/' + req.user.username);
+//     console.log('AUTH SUCCESS');
+//     const json = {
+//       jwt: jwt.sign({ sub: req.user.id, email: req.user.email }, opts.secretOrKey, {
+//         // issuer: opts.issuer
+//       }),
+//       // todo: should also include exp (expiration time)
+//       success: true,
+//       user: req.user
+//     }
+//     res.json(json);
+//   });
+
+
+// // temporarily remove any auth middleware
+// // server.express.post(server.options.endpoint, passportJwtAuth)
+
+
+// const serverOptions = {
+//   cors: corsOptions
+// }
+
+// server.start(serverOptions,() => console.log('Server is running on localhost:4000'))

@@ -1,5 +1,6 @@
 import DataLoader from 'dataloader';
 import _ from 'lodash';
+import { ForbiddenError, AuthenticationError } from 'apollo-server-express';
 
 export const fetchAllTeams = async (db) => {
   console.log('fetching all teams')
@@ -19,8 +20,17 @@ export const fetchAllTeams = async (db) => {
   })
 }
 
-export const fetchTeam = async (db, id) => {
+export const fetchTeam = async (db, context, id) => {
   console.log('fetching team', id);
+  if(!context.user){
+    throw new AuthenticationError("You must be logged in to see teams")
+  }
+  console.log(context.user)
+  // TODO
+  // fetch user's team's
+  // if id doesn't match team ID, throw error
+
+
   const team = await getTeamLoader(db).load(id);
   if(!team){
     return null;
