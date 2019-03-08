@@ -4,13 +4,28 @@
   "main": "index.js",
   "license": "MIT",
   "dependencies": {
-    "graphql-yoga": "1.17.4"
+    "@babel/polyfill": "7.2.5",
+    "bcrypt": "3.0.4",
+    "body-parser": "1.18.3",
+    "dataloader": "1.4.0",
+    "dotenv": "6.2.0",
+    "graphql-yoga": "1.17.4",
+    "jsonwebtoken": "8.5.0",
+    "knex": "0.16.3",
+    "lodash": "4.17.11",
+    "passport": "0.4.0",
+    "passport-jwt": "4.0.0",
+    "passport-local": "1.0.0",
+    "pg": "7.8.1"
   },
   "scripts": {
-    "start": "./node_modules/.bin/babel-node index.js"
+    "start": "babel-watch index.js"
   },
   "devDependencies": {
-    "babel-cli": "6.26.0",
-    "babel-preset-env": "1.7.0"
+    "@babel/cli": "^7.0.0",
+    "@babel/core": "7.3.4",
+    "@babel/node": "7.2.2",
+    "@babel/preset-env": "7.3.4",
+    "babel-watch": "7.0.0"
   }
 }
