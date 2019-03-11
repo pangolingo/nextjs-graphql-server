@@ -1,7 +1,16 @@
 import knex from 'knex';
 
-export default connectionString => knex({
-  client: 'pg',
-  connection: connectionString,
-  debug: false
-});
+let dbConnection;
+
+export const initDB = connectionString =>
+  knex({
+    client: 'pg',
+    connection: connectionString,
+    debug: false
+  });
+
+const getDatabaseConnection = () => {
+  return dbConnection || initDB(process.env.PG_CONNECTION_STRING);
+};
+
+export default getDatabaseConnection;

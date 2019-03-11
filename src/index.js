@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+
 import '@babel/polyfill';
 import express from 'express';
 import { ApolloServer } from 'apollo-server-express';
@@ -11,9 +12,14 @@ import cors from 'cors';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 
+import {
+  passportAuthenticateUser,
+  getJwtUserVerify,
+  getOptionalJwtMiddleware
+} from './passport';
 import getDatabaseConnection from './database';
 import { getUserLoader } from './data/users';
-import { authenticateUser } from './auth';
+
 import { typeDefs, resolvers } from './ApolloServer';
 import playgroundMiddleware from './customGraphqlPlaygroundMiddleware';
 
@@ -22,79 +28,28 @@ dotenv.config();
 // TODO: should also include exp (expiration time) in the JWT
 
 const corsOptions = {}; // use default CORS options
-const jwtSecret = 'secret';
+const jwtSecret = process.env.JWT_SECRET;
 const PORT = 4000;
 
-const dbConnection = getDatabaseConnection(process.env.PG_CONNECTION_STRING);
+const dbConnection = getDatabaseConnection();
 const userLoader = getUserLoader(dbConnection);
 
-const passportAuthenticateUser = async (username, password, cb) => {
-  console.log('authing user via local strategy');
-  let user;
-  try {
-    user = await authenticateUser(dbConnection, username, password);
-  } catch (e) {
-    return cb(e);
-  }
-  if (user) {
-    return cb(null, user);
-  }
-  return cb(null, false, { message: 'no user found' });
-};
-
 passport.use(new LocalStrategy(passportAuthenticateUser));
-
-const jwtUserVerify = async (jwtPayload, done) => {
-  let user;
-  try {
-    user = await userLoader.load(jwtPayload.sub);
-    console.log('jwt strategy got a user', user.email);
-  } catch (e) {
-    return done(e, false);
-  }
-  if (!user) {
-    return done(null, false, { message: 'no user found' });
-  }
-  return done(null, user);
-};
-
 passport.use(
   new JwtStrategy(
     {
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       secretOrKey: jwtSecret
     },
-    jwtUserVerify
+    getJwtUserVerify(userLoader)
   )
 );
-
 const passportLocalAuthMiddleware = passport.authenticate('local', {
   session: false
 });
 const passportJwtAuthMiddleware = passport.authenticate('jwt', {
   session: false
 });
-
-// if there's a JWT, extract the user and add it to the request
-const optionalJwtMiddleware = (req, res, next) => {
-  const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
-  if (!token) {
-    return next();
-  }
-  return jwt.verify(token, jwtSecret, {}, (err, payload) => {
-    // payload is the decoded token
-    if (err) {
-      console.warn('error verifying jwt', token);
-      next();
-    } else {
-      jwtUserVerify(payload, (err2, user) => {
-        // ignore err and info, we just care about saving the user
-        req.user = user;
-        next();
-      });
-    }
-  });
-};
 
 const context = ({ req }) => {
   return {
@@ -110,7 +65,10 @@ app.use(cookieParser());
 app.use(cors(corsOptions));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(passport.initialize());
-app.use(graphqlServer.graphqlPath, optionalJwtMiddleware);
+app.use(
+  graphqlServer.graphqlPath,
+  getOptionalJwtMiddleware(jwtSecret, userLoader)
+);
 
 // add GraphQL middleware to app
 graphqlServer.applyMiddleware({ app });
@@ -122,7 +80,7 @@ if (app.settings.env === 'development') {
 }
 
 app.get('/login', (req, res) => {
-  res.sendFile(path.join(__dirname, 'src/views/login.html'));
+  res.sendFile(path.join(__dirname, 'views/login.html'));
 });
 
 app.get('/protected', passportJwtAuthMiddleware, (req, res) => {

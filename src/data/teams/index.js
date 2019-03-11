@@ -31,12 +31,12 @@ export const batchGetTeams = async (db, keys) => {
 export const getTeamLoader = db =>
   new DataLoader(keys => batchGetTeams(db, keys));
 
-export const fetchTeam = async (db, context, id) => {
+export const fetchTeam = async (db, ctx, id) => {
   console.log('fetching team', id);
-  if (!context.user) {
+  if (!ctx.user) {
     throw new AuthenticationError('You must be logged in to see teams');
   }
-  console.log(context.user);
+  console.log(ctx.user);
   // TODO
   // fetch user's team's
   // if id doesn't match team ID, throw error
