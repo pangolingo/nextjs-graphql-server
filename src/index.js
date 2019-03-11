@@ -14,11 +14,11 @@ import jsonwebtoken from 'jsonwebtoken';
 import path from 'path';
 import cookieParser from 'cookie-parser';
 
-import getDatabaseConnection from './src/database'
-import { getUserLoader } from './src/data/users';
-import { authenticateUser } from './src/auth';
-import {typeDefs, resolvers} from './src/ApolloServer';
-import playgroundMiddleware from './src/customGraphqlPlaygroundMiddleware';
+import getDatabaseConnection from './database'
+import { getUserLoader } from './data/users';
+import { authenticateUser } from './auth';
+import {typeDefs, resolvers} from './ApolloServer';
+import playgroundMiddleware from './customGraphqlPlaygroundMiddleware';
 
 dotenv.config();
 
