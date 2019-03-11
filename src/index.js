@@ -121,15 +121,15 @@ if (app.settings.env === 'development') {
   app.get('/', playgroundMiddleware(graphqlServer.graphqlPath));
 }
 
-app.get('/login', function(req, res) {
+app.get('/login', (req, res) => {
   res.sendFile(path.join(__dirname, 'src/views/login.html'));
 });
 
-app.get('/protected', passportJwtAuthMiddleware, function(req, res) {
+app.get('/protected', passportJwtAuthMiddleware, (req, res) => {
   res.send('i am very private');
 });
 
-app.post('/playground-login', passportLocalAuthMiddleware, function(req, res) {
+app.post('/playground-login', passportLocalAuthMiddleware, (req, res) => {
   // AUTH SUCCESS
   const token = jwt.sign(
     { sub: req.user.id, email: req.user.email },
@@ -142,7 +142,7 @@ app.post('/playground-login', passportLocalAuthMiddleware, function(req, res) {
   res.redirect('/');
 });
 
-app.post('/login', passportLocalAuthMiddleware, function(req, res) {
+app.post('/login', passportLocalAuthMiddleware, (req, res) => {
   // AUTH SUCCESS
   const json = {
     jwt: jwt.sign({ sub: req.user.id, email: req.user.email }, jwtSecret, {}),
