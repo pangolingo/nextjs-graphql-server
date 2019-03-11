@@ -8,7 +8,7 @@ const comparePassword = (hashedPassword, password) => {
 }
 
 export const authenticateUser = async (db, email, password) => {
-  const user = await db('users').where({email: email, active: true}).whereNull('deleted_at').first();
+  const user = await db('users').where({email, active: true}).whereNull('deleted_at').first();
   console.log(`did we find a user (${email})?`, user);
   if(!user){
     console.log('no user')

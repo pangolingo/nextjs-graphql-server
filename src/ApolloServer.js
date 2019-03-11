@@ -1,9 +1,9 @@
-import {gql} from 'apollo-server-express';
+import { gql } from 'apollo-server-express';
 
 import { fetchAllTeams, fetchTeam, fetchUsersByTeamId } from './data/teams';
 import { fetchCommentsByUserId, fetchAuthorByCommentId } from './data/comments';
 import { fetchHighFivesByUserId } from './data/high-fives';
-import { fetchCurrentUser, fetchUserById, getUserLoader } from './data/users';
+import { fetchCurrentUser, fetchUserById } from './data/users';
 
 export const typeDefs = gql`
   type HighFive {
@@ -30,7 +30,7 @@ export const typeDefs = gql`
   }
   type Team {
     id: ID!
-    name: String,
+    name: String
     users: [User!]
   }
   type Query {
@@ -41,11 +41,10 @@ export const typeDefs = gql`
     user(id: ID!): User
   }
 
-
   schema {
     query: Query
   }
-`
+`;
 
 export const resolvers = {
   Query: {
@@ -56,11 +55,11 @@ export const resolvers = {
     user: (_, { id }, ctx) => fetchUserById(ctx.db, id)
   },
   // HighFive: {
-    
+
   // },
   Comment: {
-    author: (comment, args, ctx, info) => {
-      if(comment.authorId){
+    author: (comment, args, ctx) => {
+      if (comment.authorId) {
         return fetchUserById(comment.authorId);
       }
       return fetchAuthorByCommentId(ctx.db, comment.id);
@@ -75,9 +74,4 @@ export const resolvers = {
       return fetchUsersByTeamId(ctx.db, team.id);
     }
   }
-}
-
-
-
-
-
+};

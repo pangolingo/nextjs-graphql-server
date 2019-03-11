@@ -6,7 +6,7 @@ import expressPlayground from 'graphql-playground-middleware-express'
 const customPlaygroundMiddleware = (endpoint) => (req, res, next) => {
   const headers = {}
   if( req.cookies.jwt ){
-    headers['Authorization'] = `Bearer ${req.cookies.jwt}`;
+    headers.Authorization = `Bearer ${req.cookies.jwt}`;
   }
   const options = { endpoint, headers };
   return expressPlayground(options)(req, res, next);
