@@ -9,7 +9,6 @@ export const fetchCommentsByUserId = async (db, id) => {
   });
   return comments.map(comment => ({
     id: comment.id,
-    // author: xxx,
     authorId: comment.creator_id,
     body: comment.content
   }))
@@ -51,4 +50,3 @@ export const batchGetComments = async (db, keys) => {
 
 
 export const getCommentLoader = db => new DataLoader(keys => batchGetComments(db, keys));
-// const commentLoader = new DataLoader(keys => batchGetComments(keys));

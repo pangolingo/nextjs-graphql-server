@@ -5,9 +5,6 @@ import { ForbiddenError, AuthenticationError } from 'apollo-server-express';
 export const fetchAllTeams = async (db) => {
   console.log('fetching all teams')
   const teams = await db('groups')
-    // .join('user_groups', 'user_groups.group_id', '=', 'groups.id')
-    // .select(['groups.*', 'user_groups.user_id'])
-    // .whereNull('user_groups.deleted_at')
     .where('groups.active', true);
   if(teams.length < 1) {
     return [];
@@ -81,4 +78,3 @@ export const batchGetTeams = async (db, keys) => {
 
 
 export const getTeamLoader = db => new DataLoader(keys => batchGetTeams(db, keys));
-// export const teamLoader = new DataLoader(keys => batchGetTeams(keys));

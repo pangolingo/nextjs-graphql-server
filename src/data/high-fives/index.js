@@ -5,6 +5,5 @@ export const fetchHighFivesByUserId = async (db, id) => {
   });
   return highFives.map(comment => ({
     id: comment.id,
-    // author: xxx,
   }))
 }
