@@ -14,6 +14,8 @@ import jwt from 'jsonwebtoken';
 import { Strategy as JwtStrategy, ExtractJwt} from 'passport-jwt';
 import cors from 'cors';
 import jsonwebtoken from 'jsonwebtoken';
+import path from 'path';
+import cookieParser from 'cookie-parser';
 
 dotenv.config();
 
@@ -214,12 +216,14 @@ const PORT = 4000;
 const app = express();
 const server = new ApolloServer({typeDefs, resolvers, context});
 
+app.use(cookieParser());
 app.use(cors(corsOptions))
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
 app.get('/login', function(req, res) {
-  res.send('hello')
+  // res.send('hello')
+  res.sendFile(path.join(__dirname, 'src/views/login.html'))
 })
 
 app.get('/protected', passportJwtAuth, function(req, res) {
@@ -231,12 +235,44 @@ app.use(server.graphqlPath, optionalJwtMiddleware)
 
 server.applyMiddleware({app})
 
-app.get('/', expressPlayground({ endpoint: server.graphqlPath }))
+
+
+const alteredExpressPlaygroundMiddleware = (req, res, next) => {
+  const headers = {}
+  // if( req.query.jwt ){
+  //   headers['Authorization'] = `Bearer ${req.query.jwt}`;
+  // }
+  if( req.cookies.jwt ){
+    headers['Authorization'] = `Bearer ${req.cookies.jwt}`;
+  }
+  const options = { endpoint: server.graphqlPath, headers };
+  return expressPlayground(options)(req, res, next);
+}
+
+if(app.settings.env === 'development'){
+  app.get('/', alteredExpressPlaygroundMiddleware)
+}
+
+app.post('/playground-login',
+  passportLocalAuth,
+  function(req, res) {
+    // If this function gets called, authentication was successful.ygr
+    // `req.user` contains the authenticated user.
+    // res.redirect('/users/' + req.user.username);
+    console.log('AUTH SUCCESS');
+    const token = jwt.sign({ sub: req.user.id, email: req.user.email }, opts.secretOrKey, {
+      // issuer: opts.issuer
+    });
+    // res.redirect(`/?jwt=${token}`);
+    const maxAge = 7 * 24 * 60 * 60 // 7 days in seconds
+    res.cookie('jwt', token, { maxAge, httpOnly: true });
+    res.redirect('/');
+  });
 
 app.post('/login',
   passportLocalAuth,
   function(req, res) {
-    // If this function gets called, authentication was successful.
+    // If this function gets called, authentication was successful.ygr
     // `req.user` contains the authenticated user.
     // res.redirect('/users/' + req.user.username);
     console.log('AUTH SUCCESS');
@@ -258,60 +294,3 @@ app.post('/login',
 
 
 app.listen({port: PORT}, () => console.log('Server is running on localhost:4000'));
-
-
-
-
-
-
-
-
-
-
-
-
-// const server = new GraphQLServer({ typeDefs, resolvers, context });
-
-// // yoga only configures cores for its standard routes
-// // we need this global declaration if we want it to work for our manual routes
-// server.express.use(cors(corsOptions))
-
-// server.express.use(bodyParser.urlencoded({ extended: true }));
-// server.express.use(passport.initialize());
-
-// server.express.get('/login', function(req, res) {
-//   res.send('hello')
-// })
-
-// server.express.get('/protected', passportJwtAuth, function(req, res) {
-//   res.send('i am very private')
-// })
-
-// server.express.post('/login',
-// passportLocalAuth,
-//   function(req, res) {
-//     // If this function gets called, authentication was successful.
-//     // `req.user` contains the authenticated user.
-//     // res.redirect('/users/' + req.user.username);
-//     console.log('AUTH SUCCESS');
-//     const json = {
-//       jwt: jwt.sign({ sub: req.user.id, email: req.user.email }, opts.secretOrKey, {
-//         // issuer: opts.issuer
-//       }),
-//       // todo: should also include exp (expiration time)
-//       success: true,
-//       user: req.user
-//     }
-//     res.json(json);
-//   });
-
-
-// // temporarily remove any auth middleware
-// // server.express.post(server.options.endpoint, passportJwtAuth)
-
-
-// const serverOptions = {
-//   cors: corsOptions
-// }
-
-// server.start(serverOptions,() => console.log('Server is running on localhost:4000'))
